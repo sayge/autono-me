@@ -1,3 +1,20 @@
+#!/usr/bin/python
+#    This file is part of autono:me - a set of tools to manipulate encrypted 
+#    social networking files
+#    (C) 2011, by its creators
+#
+#    autono:me is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    autono:me is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with autono:me. If not, see <http://www.gnu.org/licenses/>.
 from BaseHTTPServer import BaseHTTPRequestHandler
 import urlparse
 import autonome
@@ -9,24 +26,10 @@ import cgi
 import re
 from threading import Thread
 import json, time,  datetime
+import autonometemplate
 
-templatedir = None
 autonomeobj = None
 loadremotesharethread = None
-
-todo = """
-	3. create_profile_form -> name, e-mail
-		-> create profile + display instructions
-	4. "/" -> display messages
-	5. edit_profile / edit_profile_handle
-	6. add_friend
-	7. share_with_friend
-	8. list_friends
-	9. post_message
-	10. download public profile
-	11. extensive help
-
-"""
 
 
 class Template():
@@ -41,9 +44,8 @@ class Template():
 		self.values[key] = value
 
 	def result(self):
-		f = open(templatedir + os.sep + self.filename, "r");
-		t = f.read()
-		f.close()
+		t = autonometemplate.get_template(self.filename)
+
 
 		#include files in templates with {include example.tpl}
 		incre = re.compile("\{include [^\}]+\}")
@@ -168,7 +170,6 @@ class GetHandler(BaseHTTPRequestHandler):
 	def doShowWall(self):
 		global loadremotesharethread
 		template = Template("wall.tpl")
-		print "Load profile"
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 
@@ -207,13 +208,63 @@ class GetHandler(BaseHTTPRequestHandler):
 
 		shares = []
 		for s in sharelist:
-			shares.append({"name":s["name"],  "url":s["url"],  "tags":",".join(s["tags"])})
+			shares.append({"sname":s["name"],  "url":s["url"],  "tags":",".join(s["tags"])})
 		template.set("shares",shares)
 		template.set("tags",tags)
 
 		template.set("name", myprofile["name"])
 		return template.cleanresult()
 
+	def doShowFollowList(self):
+		template = Template("followlist.tpl")
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		followlist = autonomeobj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
+
+		follows= []
+		for s in followlist:
+			follows.append({"fname":s["name"],  "url":s["url"]})
+		template.set("follows",follows)
+
+		template.set("name", myprofile["name"])
+		return template.cleanresult()
+
+	def doShowEditProfile(self):
+		template = Template("editprofile.tpl")
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		
+		alturls = []
+		for u in myprofile["alternateurls"]:
+			alturls.append({"url":u})
+		template.set("alturls", alturls)
+
+		template.set("name", myprofile["name"])
+		template.set("email", myprofile["email"])
+
+		return template.cleanresult()
+
+	def doSaveProfile(self, form):
+		privatekey = autonomeobj.load_private_key()
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		if form.has_key("name") and form["name"].value !="":
+			autonomeobj.set_name(privatekey, form["name"].value)
+		if form.has_key("email") and form["email"].value !="":
+			autonomeobj.set_email(privatekey, form["email"].value)
+
+		return self.doShowEditProfile()
+
+	def doAddAltURL(self, form):
+		privatekey = autonomeobj.load_private_key()
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		if form.has_key("url") and form["url"].value !="":
+			autonomeobj.add_alt_url(privatekey, form["url"].value)
+		return self.doShowEditProfile()
+
+	def doRemoveAltURL(self, form):
+		privatekey = autonomeobj.load_private_key()
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		if form.has_key("url") and form["url"].value !="":
+			autonomeobj.remove_alt_url(privatekey, form["url"].value)
+		return self.doShowEditProfile()
 
 	def doAddShare(self, form):
 		privatekey = autonomeobj.load_private_key()
@@ -221,7 +272,6 @@ class GetHandler(BaseHTTPRequestHandler):
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 		_tags = autonomeobj.get_tags(sharelist)
 		tags = []
-		print form
 		for i in _tags:
 			if form.has_key(i) and form[i].value == "1":
 				tags.append(i)
@@ -242,6 +292,41 @@ class GetHandler(BaseHTTPRequestHandler):
 
 		return self.doShowShareList()
 
+	def doAddFollow(self, form):
+		privatekey = autonomeobj.load_private_key()
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		followlist = autonomeobj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
+		
+		url= form['url'].value
+
+		followlist = autonomeobj.follow_stream(followlist, url)
+		autonomeobj.save_followlist(privatekey, followlist)
+
+		return self.doShowFollowList()
+
+	def doUnfollow(self, form):
+		privatekey = autonomeobj.load_private_key()
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		followlist = autonomeobj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
+		
+		url= form['url'].value
+
+		followlist = autonomeobj.unfollow_stream(followlist, url)
+		autonomeobj.save_followlist(privatekey, followlist)
+
+		return self.doShowFollowList()
+
+	def doUnshare(self, form):
+		privatekey = autonomeobj.load_private_key()
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
+		
+		url= form['url'].value
+
+		sharelist = autonomeobj.unshare(sharelist, url)
+		autonomeobj.save_sharelist(privatekey, sharelist)
+
+		return self.doShowShareList()
 
 	def doPostStatus(self, form):
 
@@ -250,10 +335,12 @@ class GetHandler(BaseHTTPRequestHandler):
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 		_tags = autonomeobj.get_tags(sharelist)
 		tags = []
-		print form
 		for i in _tags:
 			if form.has_key(i) and form[i].value == "1":
 				tags.append(i)
+				
+		if form.has_key("sharepublic") and form["sharepublic"].value=="public":
+			tags.append("public")
 
 		status = form['status'].value
 
@@ -293,6 +380,18 @@ class GetHandler(BaseHTTPRequestHandler):
 			self.send_response(200)
 			self.end_headers()
 			self.wfile.write(self.doShowShareList())		       
+			return
+
+		if self.path == "/followlist":
+			self.send_response(200)
+			self.end_headers()
+			self.wfile.write(self.doShowFollowList())		       
+			return
+
+		if self.path == "/editprofile":
+			self.send_response(200)
+			self.end_headers()
+			self.wfile.write(self.doShowEditProfile())		       
 			return
 
 		if self.path == "/stopserver":
@@ -348,6 +447,42 @@ class GetHandler(BaseHTTPRequestHandler):
 			self.end_headers()
 			self.wfile.write(self.doAddShare(form))
 			return
+		if self.path == '/unshare':	
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doUnshare(form))
+			return
+		if self.path == '/saveprofile':	
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doSaveProfile(form))
+			return
+		if self.path == '/addalturl':	
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doAddAltURL(form))
+			return
+		if self.path == '/removealturl':	
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doRemoveAltURL(form))
+			return
+		if self.path == '/addfollow':	
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doAddFollow(form))
+			return
+		if self.path == '/unfollow':	
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doUnfollow(form))
+			return
 
 		return
 
@@ -360,19 +495,30 @@ if __name__ == '__main__':
 
 
 	profiledir = None
-	optlist, args = getopt.getopt(sys.argv[1:], "d:", ["profiledirectory="])
+	port = 8082
+	optlist, args = getopt.getopt(sys.argv[1:], "d:p:", ["profiledirectory=","port="])
 	for o, a in optlist:
 		if o in ("-d", "--profile-directory"):
 			profiledir = a
+		if o in ("-p", "--port"):
+			try:
+				if int(a) > 1024:
+					port = int(a)
+				else:
+					logging.error("Port number too small. Try larger than 1024")
+			except ValueError:
+				logging.error("Invalid port number argument.")
+				pass
 
 	#TODO Option for different port number
 
 	autonomeobj = autonome.Autonome(profiledir)
 
-	server = HTTPServer(('localhost', 8080), GetHandler)
+	server = HTTPServer(('localhost', port), GetHandler)
 	print "Profile directory is set to "+autonomeobj.profiledir
 	print "Use the -d <dir> option to change."
-	print "Starting webserver. Point your browser to http://127.0.0.1:8080/ to get started."
+	print "Starting webserver. Point your browser to http://127.0.0.1:"+str(port)+"/ to get started."
+	print "Use the -p <number> option to change local port number."
 	print "Ctrl-C to exit."
 	server.serve_forever()
 

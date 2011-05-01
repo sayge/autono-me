@@ -1,3 +1,4 @@
+#!/usr/bin/python
 #    This file is part of autono:me - a set of tools to manipulate encrypted 
 #    social networking files
 #    (C) 2011, by its creators
@@ -293,12 +294,22 @@ class Autonome():
 		return newsl
 
 	def add_alt_url(self, privatekey, url):
-		(myprofile, myshares) = self.load_and_check_publicstream(get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = self.load_and_check_publicstream(self.get_config("Files", "PublicStream", None))
 		myprofile["alternateurls"].append(url)
 		self.save_publicstream(privatekey, myprofile, myshares)
 
+	def set_name(self, privatekey, name):
+		(myprofile, myshares) = self.load_and_check_publicstream(self.get_config("Files", "PublicStream", None))
+		myprofile["name"]=name
+		self.save_publicstream(privatekey, myprofile, myshares)
+
+	def set_email(self, privatekey, email):
+		(myprofile, myshares) = self.load_and_check_publicstream(self.get_config("Files", "PublicStream", None))
+		myprofile["email"]=email
+		self.save_publicstream(privatekey, myprofile, myshares)
+
 	def remove_alt_url(self, privatekey, url):
-		(myprofile, myshares) = self.load_and_check_publicstream(get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = self.load_and_check_publicstream(self.get_config("Files", "PublicStream", None))
 		try:
 			myprofile["alternateurls"].remove(url)
 		except ValueError, e:

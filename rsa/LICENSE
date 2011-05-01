@@ -1,0 +1,9 @@
+The files in this folder were taken from
+http://hg.stuvel.eu/python-rsa/
+
+According to http://stuvel.eu/rsa:
+"By popular demand, the code is licenced under the Gnu Public Licence (GPL) as well as the European Union Public Licence (EUPL). You're free to use the licence that suits you most, since the two are compatible."
+
+Thus, the RSA code is hereby distributed under the GNU Public License, Version 3.
+
+
