@@ -188,7 +188,11 @@ class GetHandler(BaseHTTPRequestHandler):
 		if loadremotesharethread.remotesharecache != None:
 			objs = autonomeobj.return_updates_as_array(loadremotesharethread.remotesharecache)
 			for key,value in objs.items():
-				posts.append({ "pname":value["name"], "ptext": value["text"],  "dt":datetime.datetime.strptime(value["date"], "%Y-%m-%dT%H:%M:%S.%f").strftime("%d.%m.%Y %H:%M:%S")})
+				text = value["text"]
+				urls = re.findall('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', text)
+				for u in urls:
+					text = text.replace(u, "<a href=\""+u+"\">"+u+"</a>")
+				posts.append({ "pname":value["name"], "ptext": text,  "dt":datetime.datetime.strptime(value["date"], "%Y-%m-%dT%H:%M:%S.%f").strftime("%d.%m.%Y %H:%M:%S")})
 
 		template.set("posts",posts)
 		template.set("tags",tags)

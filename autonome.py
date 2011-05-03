@@ -294,22 +294,22 @@ class Autonome():
 		return newsl
 
 	def add_alt_url(self, privatekey, url):
-		(myprofile, myshares) = self.load_and_check_publicstream(self.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = self.load_and_check_publicstream("file://"+urllib.pathname2url(self.get_config("Files", "PublicStream", None)))
 		myprofile["alternateurls"].append(url)
 		self.save_publicstream(privatekey, myprofile, myshares)
 
 	def set_name(self, privatekey, name):
-		(myprofile, myshares) = self.load_and_check_publicstream(self.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = self.load_and_check_publicstream("file://"+urllib.pathname2url(self.get_config("Files", "PublicStream", None)))
 		myprofile["name"]=name
 		self.save_publicstream(privatekey, myprofile, myshares)
 
 	def set_email(self, privatekey, email):
-		(myprofile, myshares) = self.load_and_check_publicstream(self.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = self.load_and_check_publicstream("file://"+urllib.pathname2url(self.get_config("Files", "PublicStream", None)))
 		myprofile["email"]=email
 		self.save_publicstream(privatekey, myprofile, myshares)
 
 	def remove_alt_url(self, privatekey, url):
-		(myprofile, myshares) = self.load_and_check_publicstream(self.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = self.load_and_check_publicstream("file://"+urllib.pathname2url(self.get_config("Files", "PublicStream", None)))
 		try:
 			myprofile["alternateurls"].remove(url)
 		except ValueError, e:
@@ -540,7 +540,7 @@ if __name__ == "__main__":
 				print "Format: follow <public-url>"
 			else:
 				privatekey = obj.load_private_key()
-				(myprofile, myshares) = obj.load_and_check_publicstream(obj.get_config("Files", "PublicStream", None))
+				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				followlist = obj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
 				followlist = obj.follow_stream(followlist, args[1])
 				#always follow self
@@ -551,13 +551,13 @@ if __name__ == "__main__":
 				print "Format: unfollow <public-url>"
 			else:
 				privatekey = obj.load_private_key()
-				(myprofile, myshares) = obj.load_and_check_publicstream(obj.get_config("Files", "PublicStream", None))
+				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				followlist = obj.load_followlist()
 				followlist = obj.unfollow_stream(followlist, args[1])
 				obj.save_followlist(privatekey, followlist)
 		elif args[0] == "output-text":
 			privatekey = obj.load_private_key()
-			(myprofile, myshares) = obj.load_and_check_publicstream(obj.get_config("Files", "PublicStream", None))
+			(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 			fn = obj.get_config("Files", "RemoteCache", obj.profiledir + os.sep + "RemoteCache")
 			remotesharecache = obj.get_cachefile(fn, privatekey)
 			followlist = obj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
@@ -571,7 +571,7 @@ if __name__ == "__main__":
 				print "Use quotes!"
 			else:
 				privatekey = obj.load_private_key()
-				(myprofile, myshares) = obj.load_and_check_publicstream(obj.get_config("Files", "PublicStream", None))
+				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				sharelist = obj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 				fn = obj.get_config("Files", "LocalCache", obj.profiledir + os.sep + "LocalCache")
 				
@@ -596,7 +596,7 @@ if __name__ == "__main__":
 			if len(args) < 3:
 				print "Format: share <profileurl> <tag1> [<tag2> [ <tag3> ... ]]"
 			else:
-				(myprofile, myshares) = obj.load_and_check_publicstream(obj.get_config("Files", "PublicStream", None))
+				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				sharelist = obj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 				sharelist = obj.share_stream(sharelist, args[1], args[2:])
 				privatekey = obj.load_private_key()
@@ -605,7 +605,7 @@ if __name__ == "__main__":
 			if len(args) < 2:
 				print "Format: unshare <public-url>"
 			else:
-				(myprofile, myshares) = obj.load_and_check_publicstream(obj.get_config("Files", "PublicStream", None))
+				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				sharelist = obj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 				obj.unshare(sharelist,args[1])
 				privatekey = obj.load_private_key()
