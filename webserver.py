@@ -16,7 +16,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with autono:me. If not, see <http://www.gnu.org/licenses/>.
 from BaseHTTPServer import BaseHTTPRequestHandler
-import urlparse
+import urlparse, urllib
 import autonome
 import logging
 import getopt
@@ -144,7 +144,7 @@ class GetHandler(BaseHTTPRequestHandler):
 	def check(self):
 		profilefound = False
 		if autonomeobj.get_config("Files", "PublicStream", None) != None:
-			if autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None)) != None:
+			if autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None))) != None:
 				profilefound = True
 		return profilefound
 
@@ -170,7 +170,7 @@ class GetHandler(BaseHTTPRequestHandler):
 	def doShowWall(self):
 		global loadremotesharethread
 		template = Template("wall.tpl")
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 
 		_tags = autonomeobj.get_tags(sharelist)
@@ -202,7 +202,7 @@ class GetHandler(BaseHTTPRequestHandler):
 
 	def doShowShareList(self):
 		template = Template("sharelist.tpl")
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 
 		_tags = autonomeobj.get_tags(sharelist)
@@ -221,7 +221,7 @@ class GetHandler(BaseHTTPRequestHandler):
 
 	def doShowFollowList(self):
 		template = Template("followlist.tpl")
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		followlist = autonomeobj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
 
 		follows= []
@@ -234,7 +234,7 @@ class GetHandler(BaseHTTPRequestHandler):
 
 	def doShowEditProfile(self):
 		template = Template("editprofile.tpl")
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		
 		alturls = []
 		for u in myprofile["alternateurls"]:
@@ -248,7 +248,7 @@ class GetHandler(BaseHTTPRequestHandler):
 
 	def doSaveProfile(self, form):
 		privatekey = autonomeobj.load_private_key()
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		if form.has_key("name") and form["name"].value !="":
 			autonomeobj.set_name(privatekey, form["name"].value)
 		if form.has_key("email") and form["email"].value !="":
@@ -258,21 +258,21 @@ class GetHandler(BaseHTTPRequestHandler):
 
 	def doAddAltURL(self, form):
 		privatekey = autonomeobj.load_private_key()
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		if form.has_key("url") and form["url"].value !="":
 			autonomeobj.add_alt_url(privatekey, form["url"].value)
 		return self.doShowEditProfile()
 
 	def doRemoveAltURL(self, form):
 		privatekey = autonomeobj.load_private_key()
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		if form.has_key("url") and form["url"].value !="":
 			autonomeobj.remove_alt_url(privatekey, form["url"].value)
 		return self.doShowEditProfile()
 
 	def doAddShare(self, form):
 		privatekey = autonomeobj.load_private_key()
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 		_tags = autonomeobj.get_tags(sharelist)
 		tags = []
@@ -298,7 +298,7 @@ class GetHandler(BaseHTTPRequestHandler):
 
 	def doAddFollow(self, form):
 		privatekey = autonomeobj.load_private_key()
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		followlist = autonomeobj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
 		
 		url= form['url'].value
@@ -310,7 +310,7 @@ class GetHandler(BaseHTTPRequestHandler):
 
 	def doUnfollow(self, form):
 		privatekey = autonomeobj.load_private_key()
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		followlist = autonomeobj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
 		
 		url= form['url'].value
@@ -322,7 +322,7 @@ class GetHandler(BaseHTTPRequestHandler):
 
 	def doUnshare(self, form):
 		privatekey = autonomeobj.load_private_key()
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 		
 		url= form['url'].value
@@ -335,7 +335,7 @@ class GetHandler(BaseHTTPRequestHandler):
 	def doPostStatus(self, form):
 
 		privatekey = autonomeobj.load_private_key()
-		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("Files", "PublicStream", None))
+		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("file://"+urllib.pathname2url("Files", "PublicStream", None)))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 		_tags = autonomeobj.get_tags(sharelist)
 		tags = []
