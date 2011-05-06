@@ -26,7 +26,7 @@ import logging
 import getopt
 import platform, os, os.path, sys
 import ConfigParser
-import urllib
+import urllib, urllib2
 
 PROGRAMNAME = "autonome"
 DEBUG = True
@@ -132,7 +132,7 @@ class Autonome():
 		The file is also checked for cryptographic consistency
 		filename can either be a local filename or an URL """
 		# get the JSON object from the file
-		f = urllib.urlopen(filename)
+		f = urllib2.urlopen(filename)
 		obj = json.load(f)
 
 		#(0) check format version to ensure forward compatibility
@@ -525,7 +525,8 @@ if __name__ == "__main__":
 		if o in ("-d", "--profile-directory"):
 			profiledir = a
 
-
+	if profiledir != None and profiledir[-1] == "/":
+		profiledir = profiledir[:-1]
 
 	obj = Autonome(profiledir)
 

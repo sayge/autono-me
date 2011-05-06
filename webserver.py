@@ -31,6 +31,8 @@ import autonometemplate
 autonomeobj = None
 loadremotesharethread = None
 
+CONSTWEBSERVERREFRESHTHREADMINUTES = 15
+
 
 class Template():
 
@@ -122,7 +124,7 @@ class LoadRemoteShareThread(Thread):
 
 		while True:
 			self.refresh()
-			time.sleep(60 * 15)
+			time.sleep(60 * CONSTWEBSERVERREFRESHTHREADMINUTES)
 
 	def refresh(self):
 		fn = self.autonomeobj.get_config("Files", "RemoteCache", self.autonomeobj.profiledir + os.sep + "RemoteCache")
@@ -514,7 +516,10 @@ if __name__ == '__main__':
 				logging.error("Invalid port number argument.")
 				pass
 
-	#TODO Option for different port number
+
+	if profiledir[-1]== "/":
+		profiledir = profiledir[:-1]
+
 
 	autonomeobj = autonome.Autonome(profiledir)
 

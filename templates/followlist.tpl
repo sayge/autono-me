@@ -5,7 +5,8 @@
 Add a new url to follow:
 <form action="/addfollow" method="post"><input type="text" size="40" name="url"> 
 <br>
-<input type="submit"></form>
+<input type="submit"></form><br>
+(Note: New feeds will only be loaded after the next fetch interval which can take up to 15 minutes.)<br>
 <h2>Feeds you follow</h2>
 <table border="1">
 <tr>
