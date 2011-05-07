@@ -111,27 +111,32 @@ class LoadRemoteShareThread(Thread):
 	privatekey = None
 	stream = []
 	posts = []
+	isrunning = False
+	password = ""
 	
 
 	def __init__(self, autonomeobj, myprofile, password=""):
 		Thread.__init__(self)
 		self.autonomeobj = autonomeobj
 		self.myprofile = myprofile
-		#TODO das in einen extra-thread auslagern
-		try:
-			self.privatekey = self.autonomeobj.load_private_key(password)
-		except:
-			pass
+		self.password = password
 
 	def run(self):
-		if self.privatekey != None:
-			fn = self.autonomeobj.get_config("Files", "RemoteCache", self.autonomeobj.profiledir + os.sep + "RemoteCache")
-			self.remotesharecache = self.autonomeobj.get_cachefile(fn, self.privatekey)
-			self.followlist = self.autonomeobj.load_followlist(json.loads(self.myprofile["pubkey"].decode("hex")))
+		try:
+			self.isrunning = True
+			self.privatekey = self.autonomeobj.load_private_key(password)
+			if self.privatekey != None:
+				fn = self.autonomeobj.get_config("Files", "RemoteCache", self.autonomeobj.profiledir + os.sep + "RemoteCache")
+				self.remotesharecache = self.autonomeobj.get_cachefile(fn, self.privatekey)
+				self.followlist = self.autonomeobj.load_followlist(json.loads(self.myprofile["pubkey"].decode("hex")))
 
-			while True:
-				self.refresh()
-				time.sleep(60 * CONSTWEBSERVERREFRESHTHREADMINUTES)
+				while True:
+					self.refresh()
+					time.sleep(60 * CONSTWEBSERVERREFRESHTHREADMINUTES)
+		except:
+			self.isrunning = False
+			logging.debug("Privatekey failed")
+
 
 	def refresh(self):
 		fn = self.autonomeobj.get_config("Files", "RemoteCache", self.autonomeobj.profiledir + os.sep + "RemoteCache")
