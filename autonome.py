@@ -25,6 +25,7 @@ import datetime
 import logging
 import getopt
 import platform, os, os.path, sys
+import getpass
 import ConfigParser
 import urllib, urllib2
 
@@ -80,10 +81,31 @@ class Autonome():
 		with open(self.profiledir+os.sep+"settings.ini", 'wb') as configfile:
 		    self.config.write(configfile)
 
-	def load_private_key(self):	#TODO handle password protection
+	def load_private_key_console(self):
+		if self.get_config("Settings", "EncryptPrivateKey", "false") != "false":
+			password = getpass.getpass("Please enter private key password: ")
+		else:
+			password = ""
+		return self.load_private_key(password)
+
+
+	def load_private_key(self, password=""):
 		keyfilef = open(self.get_config("Files", "PrivateKey", None) , "r")
 		s = keyfilef.read()
-		decodedjson = s.decode("hex")
+
+		if password !="":
+			print "Blowfish decrypting private key"
+			m = hashlib.md5()
+			m.update(password)
+			cipher = Blowfish.Blowfish(m.hexdigest())
+			try:
+				decodedjson = cipher.decryptCTR(s).decode("hex")
+			except:
+				logging.error("Password is incorrect!")
+				raise
+		else:
+			decodedjson = s.decode("hex")
+
 		privatekey = json.loads(decodedjson)
 		return privatekey
 
@@ -131,49 +153,53 @@ class Autonome():
 		""" Load profile information and share objects from a given file
 		The file is also checked for cryptographic consistency
 		filename can either be a local filename or an URL """
-		# get the JSON object from the file
-		f = urllib2.urlopen(filename)
-		obj = json.load(f)
 
-		#(0) check format version to ensure forward compatibility
-		if obj["version"] != FORMATVERSION:
-			return (False, False)
+		try:
+			# get the JSON object from the file
+			f = urllib2.urlopen(filename)
+			obj = json.load(f)
+			f.close()
 
-		good = True
+			#(0) check format version to ensure forward compatibility
+			if obj["version"] != FORMATVERSION:
+				return (False, False)
 
-		# (1) load profile
-		profile = json.loads(obj["profile"])
+			good = True
 
-		# (2) check whether key and id match
-		pubkeym = hashlib.md5()
-		pubkeym.update(profile["pubkey"])
-		good = good and (pubkeym.hexdigest() == profile["id"])
+			# (1) load profile
+			profile = json.loads(obj["profile"])
 
-		if (pubkeym.hexdigest() == profile["id"]):
-			logging.debug("Check stream "+filename+": ID and Key match")
+			# (2) check whether key and id match
+			pubkeym = hashlib.md5()
+			pubkeym.update(profile["pubkey"])
+			good = good and (pubkeym.hexdigest() == profile["id"])
 
-		# (3) check whether user has signed the profile hash
-		pubkey_unhex = profile["pubkey"].decode("hex")
-		pubkey = json.loads(pubkey_unhex)
+			if (pubkeym.hexdigest() == profile["id"]):
+				logging.debug("Check stream "+filename+": ID and Key match")
 
-		profilem = hashlib.md5()
-		profilem.update(obj["profile"])
-		profilehash = profilem.hexdigest()
+			# (3) check whether user has signed the profile hash
+			pubkey_unhex = profile["pubkey"].decode("hex")
+			pubkey = json.loads(pubkey_unhex)
 
-		v = (rsa.verify(str(obj["profilesignature"]), pubkey) == profilehash)
+			profilem = hashlib.md5()
+			profilem.update(obj["profile"])
+			profilehash = profilem.hexdigest()
+
+			v = (rsa.verify(str(obj["profilesignature"]), pubkey) == profilehash)
 
 	
-		if v:
-			logging.debug("Check stream "+filename+": Profile Hash is signed correctly")
+			if v:
+				logging.debug("Check stream "+filename+": Profile Hash is signed correctly")
 	
-		good = good and v 
-		if good:
-			return (profile, obj["shares"])
-		else:
-			return (False, False)
+			good = good and v 
+			if good:
+				return (profile, obj["shares"])
+			else:
+				return (False, False)
+		except ValueError:
+			logging.error("ValueError with profile "+filename)
 
-
-	def create_new_fileset(self, name, email, password="", alternateurls=[]): #TODO encrypt private key
+	def create_new_fileset(self, name, email, password="", alternateurls=[]): 
 		""" setup new keys and the respective files for a user """
 		logging.info("Generating RSA Keys. This may take some time...")
 		(pub, priv) = rsa.newkeys(KEYSIZE)
@@ -189,8 +215,10 @@ class Autonome():
 			m.update(password)
 			cipher = Blowfish.Blowfish(m.hexdigest())
 			privatekey = cipher.encryptCTR(json.dumps(priv).encode("hex"))
+			self.config.set("Settings", "EncryptPrivateKey", "true")
 		else:
 			privatekey = json.dumps(priv).encode("hex")
+			self.config.set("Settings", "EncryptPrivateKey", "false")
 
 		publickey = json.dumps(pub).encode("hex")
 
@@ -535,12 +563,13 @@ if __name__ == "__main__":
 			if len(args) < 3:
 				print "Format: create <Name> <Email>"
 			else:
-				obj.create_new_fileset(args[1], args[2], "", [])
+				password = raw_input("Please enter private key password ([ENTER] for no password) : ")
+				obj.create_new_fileset(args[1], args[2], password.strip(), [])
 		elif args[0] == "follow":
 			if len(args) < 2:
 				print "Format: follow <public-url>"
 			else:
-				privatekey = obj.load_private_key()
+				privatekey = obj.load_private_key_console()
 				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				followlist = obj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
 				followlist = obj.follow_stream(followlist, args[1])
@@ -551,13 +580,13 @@ if __name__ == "__main__":
 			if len(args) < 2:
 				print "Format: unfollow <public-url>"
 			else:
-				privatekey = obj.load_private_key()
+				privatekey = obj.load_private_key_console()
 				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				followlist = obj.load_followlist()
 				followlist = obj.unfollow_stream(followlist, args[1])
 				obj.save_followlist(privatekey, followlist)
 		elif args[0] == "output-text":
-			privatekey = obj.load_private_key()
+			privatekey = obj.load_private_key_console()
 			(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 			fn = obj.get_config("Files", "RemoteCache", obj.profiledir + os.sep + "RemoteCache")
 			remotesharecache = obj.get_cachefile(fn, privatekey)
@@ -571,7 +600,7 @@ if __name__ == "__main__":
 				print "Format: message-text <textmessage>  <tag1> [<tag2> [ <tag3> ... ]]"
 				print "Use quotes!"
 			else:
-				privatekey = obj.load_private_key()
+				privatekey = obj.load_private_key_console()
 				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				sharelist = obj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 				fn = obj.get_config("Files", "LocalCache", obj.profiledir + os.sep + "LocalCache")
@@ -585,13 +614,14 @@ if __name__ == "__main__":
 				print "Format: add-alt-url <url>"
 				print "Use quotes!"
 			else:
-				obj.privatekey = load_private_key()
+				obj.privatekey = load_private_key_console()
 				obj.add_alt_url(privatekey, args[1])
 		elif args[0] == "remove-alt-url":
 			if len(args) < 2:
 				print "Format: remove-alt-url <url>"
 				print "Use quotes!"
 			else:
+				obj.privatekey = load_private_key_console()
 				obj.remove_alt_url(privatekey, args[1])
 		elif args[0] == "share":
 			if len(args) < 3:
@@ -600,7 +630,7 @@ if __name__ == "__main__":
 				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				sharelist = obj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 				sharelist = obj.share_stream(sharelist, args[1], args[2:])
-				privatekey = obj.load_private_key()
+				privatekey = obj.load_private_key_console()
 				obj.save_sharelist(privatekey, sharelist)
 		elif args[0] == "unshare":
 			if len(args) < 2:
@@ -609,7 +639,7 @@ if __name__ == "__main__":
 				(myprofile, myshares) = obj.load_and_check_publicstream("file://"+urllib.pathname2url(obj.get_config("Files", "PublicStream", None)))
 				sharelist = obj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 				obj.unshare(sharelist,args[1])
-				privatekey = obj.load_private_key()
+				privatekey = obj.load_private_key_console()
 				obj.save_sharelist(privatekey, sharelist)
 	else:
 		print """autono:me private social networking

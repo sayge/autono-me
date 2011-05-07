@@ -30,6 +30,9 @@ import autonometemplate
 
 autonomeobj = None
 loadremotesharethread = None
+passwordisset = False
+cachedpassword = ""
+
 
 CONSTWEBSERVERREFRESHTHREADMINUTES = 15
 
@@ -151,7 +154,6 @@ class GetHandler(BaseHTTPRequestHandler):
 		return profilefound
 
 
-	#TODO Handler fuer Form Passwort und Handling Passwort
 
 	def doCreateProfileForm(self, errors = ""):
 		template = Template("createprofileform.tpl")
@@ -159,13 +161,24 @@ class GetHandler(BaseHTTPRequestHandler):
 		return template.cleanresult()
 
 
+	def doSetPasswordForm(self):
+		template = Template("setpasswordform.tpl")
+		return template.cleanresult()
+
 	def doCreateProfile(self, form):
 		name = form['name'].value
 		email = form['email'].value
 		if name == "" or email == "":
 			return self.doCreateProfileForm("Error Message") #TODO
 		else:
-			autonomeobj.create_new_fileset(name, email)
+			if form.has_key("privatekeypassword") and form["privatekeypassword"].value!="":
+				passwordisset = True
+				cachedpassword = form["privatekeypassword"].value
+				password = form["privatekeypassword"].value
+			else:
+				password = ""
+
+			autonomeobj.create_new_fileset(name, email, password)
 			template = Template("aftercreateprofile.tpl")
 			return template.cleanresult()
 
@@ -334,6 +347,14 @@ class GetHandler(BaseHTTPRequestHandler):
 
 		return self.doShowShareList()
 
+	def doSetPassword(self, form):
+		if form.has_key("privatekeypassword") and form["privatekeypassword"].value!="":
+			passwordisset = True
+			cachedpassword = form["password"].value
+			return self.doShowWall()
+		else:
+			return self.doSetPasswordForm()
+
 	def doPostStatus(self, form):
 
 		privatekey = autonomeobj.load_private_key()
@@ -375,7 +396,13 @@ class GetHandler(BaseHTTPRequestHandler):
 			self.wfile.write(self.doCreateProfileForm())
 			return
 
-		#TODO check for encrypted private key
+		if self.get_config("Settings", "EncryptPrivateKey", "false") != "false" and passwordisset = False:
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doSetPasswordForm()) 
+			return
+
 		if self.path == "/":
 			self.send_response(200)
 			self.end_headers()
@@ -439,6 +466,20 @@ class GetHandler(BaseHTTPRequestHandler):
 			self.send_header("Content-type", "text/html")
 			self.end_headers()
 			self.wfile.write(self.doCreateProfileForm())
+			return
+
+		if self.path == '/postsetpasswordform':	#this before enterpasswordform
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doSetPassword(form)) 
+			return
+
+		if self.get_config("Settings", "EncryptPrivateKey", "false") != "false" and passwordisset = False:
+			self.send_response(200)
+			self.send_header("Content-type", "text/html")
+			self.end_headers()
+			self.wfile.write(self.doSetPasswordForm()) 
 			return
 
 		if self.path == '/poststatus':	

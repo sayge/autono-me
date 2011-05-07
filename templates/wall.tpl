@@ -14,7 +14,8 @@ Aspects:
 <br>
 <input type="submit"></form>
 <hr noshade>
-Please refresh the wall manually. Posts take a long time to load for now.
+Please refresh the wall manually. Posts take a long time to load at the moment, this will be fixed, however.<br>
+Please be sure to regularly check for <a href="http://autono-me.googlecode.com">new versions</a>.
 <p>
 {repeat POSTS}
 <div style="background-color:#CCCCFF; padding:2px; margin: 2px;">#PNAME# said: #PTEXT#<br>
