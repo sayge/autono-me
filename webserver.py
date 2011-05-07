@@ -124,7 +124,7 @@ class LoadRemoteShareThread(Thread):
 	def run(self):
 		try:
 			self.isrunning = True
-			self.privatekey = self.autonomeobj.load_private_key(password)
+			self.privatekey = self.autonomeobj.load_private_key(self.password)
 			if self.privatekey != None:
 				fn = self.autonomeobj.get_config("Files", "RemoteCache", self.autonomeobj.profiledir + os.sep + "RemoteCache")
 				self.remotesharecache = self.autonomeobj.get_cachefile(fn, self.privatekey)
@@ -210,7 +210,7 @@ class GetHandler(BaseHTTPRequestHandler):
 		for i in _tags:
 			tags.append( { "tagname":i })
 
-		if loadremotesharethread == None or loadremotesharethread.is_alive():
+		if loadremotesharethread == None or not loadremotesharethread.is_alive():
 			loadremotesharethread = LoadRemoteShareThread(autonomeobj, myprofile)
 			loadremotesharethread.daemon = True
 			loadremotesharethread.start()
