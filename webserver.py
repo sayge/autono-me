@@ -111,23 +111,27 @@ class LoadRemoteShareThread(Thread):
 	privatekey = None
 	stream = []
 	posts = []
+	
 
-	def __init__(self, autonomeobj, myprofile):
+	def __init__(self, autonomeobj, myprofile, password=""):
 		Thread.__init__(self)
 		self.autonomeobj = autonomeobj
 		self.myprofile = myprofile
 		#TODO das in einen extra-thread auslagern
-		self.privatekey = self.autonomeobj.load_private_key()
-
+		try:
+			self.privatekey = self.autonomeobj.load_private_key(password)
+		except:
+			pass
 
 	def run(self):
-		fn = self.autonomeobj.get_config("Files", "RemoteCache", self.autonomeobj.profiledir + os.sep + "RemoteCache")
-		self.remotesharecache = self.autonomeobj.get_cachefile(fn, self.privatekey)
-		self.followlist = self.autonomeobj.load_followlist(json.loads(self.myprofile["pubkey"].decode("hex")))
+		if self.privatekey != None:
+			fn = self.autonomeobj.get_config("Files", "RemoteCache", self.autonomeobj.profiledir + os.sep + "RemoteCache")
+			self.remotesharecache = self.autonomeobj.get_cachefile(fn, self.privatekey)
+			self.followlist = self.autonomeobj.load_followlist(json.loads(self.myprofile["pubkey"].decode("hex")))
 
-		while True:
-			self.refresh()
-			time.sleep(60 * CONSTWEBSERVERREFRESHTHREADMINUTES)
+			while True:
+				self.refresh()
+				time.sleep(60 * CONSTWEBSERVERREFRESHTHREADMINUTES)
 
 	def refresh(self):
 		fn = self.autonomeobj.get_config("Files", "RemoteCache", self.autonomeobj.profiledir + os.sep + "RemoteCache")
@@ -183,6 +187,14 @@ class GetHandler(BaseHTTPRequestHandler):
 			return template.cleanresult()
 
 	def doShowWall(self):
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
+
 		global loadremotesharethread
 		template = Template("wall.tpl")
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
@@ -193,7 +205,7 @@ class GetHandler(BaseHTTPRequestHandler):
 		for i in _tags:
 			tags.append( { "tagname":i })
 
-		if loadremotesharethread == None:
+		if loadremotesharethread == None or loadremotesharethread.is_alive():
 			loadremotesharethread = LoadRemoteShareThread(autonomeobj, myprofile)
 			loadremotesharethread.daemon = True
 			loadremotesharethread.start()
@@ -262,7 +274,13 @@ class GetHandler(BaseHTTPRequestHandler):
 		return template.cleanresult()
 
 	def doSaveProfile(self, form):
-		privatekey = autonomeobj.load_private_key()
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		if form.has_key("name") and form["name"].value !="":
 			autonomeobj.set_name(privatekey, form["name"].value)
@@ -272,21 +290,39 @@ class GetHandler(BaseHTTPRequestHandler):
 		return self.doShowEditProfile()
 
 	def doAddAltURL(self, form):
-		privatekey = autonomeobj.load_private_key()
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		if form.has_key("url") and form["url"].value !="":
 			autonomeobj.add_alt_url(privatekey, form["url"].value)
 		return self.doShowEditProfile()
 
 	def doRemoveAltURL(self, form):
-		privatekey = autonomeobj.load_private_key()
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		if form.has_key("url") and form["url"].value !="":
 			autonomeobj.remove_alt_url(privatekey, form["url"].value)
 		return self.doShowEditProfile()
 
 	def doAddShare(self, form):
-		privatekey = autonomeobj.load_private_key()
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 		_tags = autonomeobj.get_tags(sharelist)
@@ -312,7 +348,13 @@ class GetHandler(BaseHTTPRequestHandler):
 		return self.doShowShareList()
 
 	def doAddFollow(self, form):
-		privatekey = autonomeobj.load_private_key()
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		followlist = autonomeobj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
 		
@@ -324,7 +366,13 @@ class GetHandler(BaseHTTPRequestHandler):
 		return self.doShowFollowList()
 
 	def doUnfollow(self, form):
-		privatekey = autonomeobj.load_private_key()
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		followlist = autonomeobj.load_followlist(json.loads(myprofile["pubkey"].decode("hex")))
 		
@@ -336,7 +384,13 @@ class GetHandler(BaseHTTPRequestHandler):
 		return self.doShowFollowList()
 
 	def doUnshare(self, form):
-		privatekey = autonomeobj.load_private_key()
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream("file://"+urllib.pathname2url(autonomeobj.get_config("Files", "PublicStream", None)))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 		
@@ -348,16 +402,24 @@ class GetHandler(BaseHTTPRequestHandler):
 		return self.doShowShareList()
 
 	def doSetPassword(self, form):
+		global passwordisset
+		global cachedpassword
 		if form.has_key("privatekeypassword") and form["privatekeypassword"].value!="":
 			passwordisset = True
-			cachedpassword = form["password"].value
+			cachedpassword = form["privatekeypassword"].value
 			return self.doShowWall()
 		else:
 			return self.doSetPasswordForm()
 
 	def doPostStatus(self, form):
 
-		privatekey = autonomeobj.load_private_key()
+		if passwordisset:
+			try:
+				privatekey = autonomeobj.load_private_key(cachedpassword)
+			except:
+				return self.doSetPasswordForm()
+		else:
+			privatekey = autonomeobj.load_private_key()
 		(myprofile, myshares) = autonomeobj.load_and_check_publicstream(autonomeobj.get_config("file://"+urllib.pathname2url("Files", "PublicStream", None)))
 		sharelist = autonomeobj.load_sharelist(json.loads(myprofile["pubkey"].decode("hex")))
 		_tags = autonomeobj.get_tags(sharelist)
@@ -396,7 +458,7 @@ class GetHandler(BaseHTTPRequestHandler):
 			self.wfile.write(self.doCreateProfileForm())
 			return
 
-		if self.get_config("Settings", "EncryptPrivateKey", "false") != "false" and passwordisset = False:
+		if autonomeobj.get_config("Settings", "EncryptPrivateKey", "false") != "false" and passwordisset == False:
 			self.send_response(200)
 			self.send_header("Content-type", "text/html")
 			self.end_headers()
@@ -475,7 +537,7 @@ class GetHandler(BaseHTTPRequestHandler):
 			self.wfile.write(self.doSetPassword(form)) 
 			return
 
-		if self.get_config("Settings", "EncryptPrivateKey", "false") != "false" and passwordisset = False:
+		if autonomeobj.get_config("Settings", "EncryptPrivateKey", "false") != "false" and passwordisset == False:
 			self.send_response(200)
 			self.send_header("Content-type", "text/html")
 			self.end_headers()
@@ -558,7 +620,7 @@ if __name__ == '__main__':
 				pass
 
 
-	if profiledir[-1]== "/":
+	if profiledir != None and profiledir[-1] == "/":
 		profiledir = profiledir[:-1]
 
 
